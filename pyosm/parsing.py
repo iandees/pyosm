@@ -75,7 +75,7 @@ def iter_osm_file(f, parse_timestamps=True):
                 obj.members.append(
                     model.Member(
                         elem.attrib['type'],
-                        elem.attrib['ref'],
+                        int(elem.attrib['ref']),
                         elem.attrib['role']
                     )
                 )
