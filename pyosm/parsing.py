@@ -249,3 +249,6 @@ def iter_osm_file(f, parse_timestamps=True):
             elif elem.tag == 'relation':
                 yield obj
                 obj = None
+            elif elem.tag == 'changeset':
+                yield obj
+                obj = None
