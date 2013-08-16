@@ -4,15 +4,20 @@ import urllib2
 import StringIO
 import gzip
 import time
-import datetime
 from lxml import etree
 
 def isoToDatetime(s):
     """Parse a ISO8601-formatted string to a Python datetime."""
-    return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+    if s is None:
+        return s
+    else:
+        return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
 
 def maybeInt(s):
     return int(s) if s is not None else s
+
+def maybeFloat(s):
+    return float(s) if s is not None else s
 
 def maybeBool(s):
     if s is not None:
@@ -219,6 +224,20 @@ def iter_osm_file(f, parse_timestamps=True):
                         int(elem.attrib['ref']),
                         elem.attrib['role']
                     )
+                )
+            elif elem.tag == 'changeset':
+                obj = model.Changeset(
+                    int(elem.attrib['id']),
+                    isoToDatetime(elem.attrib.get('created_at')) if parse_timestamps else elem.attrib.get('created_at'),
+                    isoToDatetime(elem.attrib.get('closed_at')) if parse_timestamps else elem.attrib.get('closed_at'),
+                    maybeBool(elem.attrib['open']),
+                    maybeFloat(elem.attrib['min_lat']),
+                    maybeFloat(elem.attrib['max_lat']),
+                    maybeFloat(elem.attrib['min_lon']),
+                    maybeFloat(elem.attrib['max_lon']),
+                    elem.attrib.get('user'),
+                    maybeInt(elem.attrib.get('uid')),
+                    []
                 )
         elif event == 'end':
             if elem.tag == 'node':
