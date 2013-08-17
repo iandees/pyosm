@@ -135,6 +135,8 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
                 elif elem.tag in ('create', 'modify', 'delete'):
                     action = None
 
+            elem.clear()
+
         # After parsing the OSC, check to see how much time is remaining
         stateTs = datetime.datetime.strptime(state['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
         nextTs = stateTs + datetime.timedelta(seconds=expected_interval + interval_fudge)
@@ -252,3 +254,5 @@ def iter_osm_file(f, parse_timestamps=True):
             elif elem.tag == 'changeset':
                 yield obj
                 obj = None
+
+        elem.clear()
