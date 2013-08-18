@@ -182,8 +182,8 @@ def iter_osm_file(f, parse_timestamps=True):
                     maybeInt(elem.attrib.get('uid')),
                     maybeBool(elem.attrib.get('visible')),
                     isoToDatetime(elem.attrib.get('timestamp')) if parse_timestamps else elem.attrib.get('timestamp'),
-                    float(elem.attrib['lat']),
-                    float(elem.attrib['lon']),
+                    maybeFloat(elem.get('lat')),
+                    maybeFloat(elem.get('lon')),
                     []
                 )
             elif elem.tag == 'way':
