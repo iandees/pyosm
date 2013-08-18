@@ -136,6 +136,8 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
                     action = None
 
             elem.clear()
+            while elem.getprevious() is not None:
+                del elem.getparent()[0]
 
         # After parsing the OSC, check to see how much time is remaining
         stateTs = datetime.datetime.strptime(state['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
@@ -256,3 +258,5 @@ def iter_osm_file(f, parse_timestamps=True):
                 obj = None
 
         elem.clear()
+        while elem.getprevious() is not None:
+            del elem.getparent()[0]
