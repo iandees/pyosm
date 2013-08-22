@@ -4,7 +4,6 @@ import sys
 import unicodecsv
 import gzip
 import re
-from collections import dequeue
 
 class ThingHolder(object):
     def __init__(self, nodes, ways, relations, changesets):
