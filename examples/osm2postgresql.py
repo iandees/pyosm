@@ -55,7 +55,7 @@ cut_new_file('nodes')
 cut_new_file('ways')
 cut_new_file('relations')
 
-sys.stdout.write('%8d changesets, %10d nodes, %8d ways, %5d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
+sys.stdout.write('%8d changesets, %10d nodes, %10d ways, %10d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
 for p in iter_osm_file(open(sys.argv[1], 'r'), parse_timestamps=False):
 
     if type(p) == pyosm.model.Node:
@@ -141,8 +141,8 @@ for p in iter_osm_file(open(sys.argv[1], 'r'), parse_timestamps=False):
     total += 1
 
     if total % size_of_buffer == 0:
-        sys.stdout.write('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b')
-        sys.stdout.write('%8d changesets, %10d nodes, %8d ways, %5d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
+        sys.stdout.write('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b')
+        sys.stdout.write('%8d changesets, %10d nodes, %10d ways, %10d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
         sys.stdout.flush()
 
 write_and_clear_buffer('changesets')
@@ -150,6 +150,6 @@ write_and_clear_buffer('nodes')
 write_and_clear_buffer('ways')
 write_and_clear_buffer('relations')
 
-sys.stdout.write('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b')
-sys.stdout.write('%8d changesets, %10d nodes, %8d ways, %5d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
+sys.stdout.write('\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b')
+sys.stdout.write('%8d changesets, %10d nodes, %10d ways, %10d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
 sys.stdout.flush()
