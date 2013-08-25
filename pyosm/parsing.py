@@ -28,20 +28,91 @@ def maybeBool(s):
     else:
         return s
 
-def readState(state_file):
+def readState(state_file, sep='='):
     state = {}
 
     for line in state_file:
+        if line == '---':
+            continue
         if line[0] == '#':
             continue
-        (k, v) = line.split('=')
+        (k, v) = line.split(sep)
         state[k] = v.strip().replace("\\:", ":")
 
     return state
 
-def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True):
-    """Start processing an OSM diff stream and yield one (action, primitive) tuple
+def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/changesets', expected_interval=60, parse_timestamps=True):
+    """Start processing an OSM changeset stream and yield one (action, primitive) tuple
     at a time to the caller."""
+
+    # This is a lot like the other osm_stream except there's no
+    # state file for each of the diffs, so just push ahead until
+    # we run into a 404.
+
+    # If no start_sqn, assume to start from the most recent changeset file
+    if not start_sqn:
+        u = urllib2.urlopen('%s/state.yaml' % base_url)
+        state = readState(u, ': ')
+        sequenceNumber = state['sequence']
+    else:
+        sequenceNumber = start_sqn
+
+    interval_fudge = 0.0
+    while True:
+        sqnStr = str(sequenceNumber).zfill(9)
+        url = '%s/%s/%s/%s.osm.gz' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
+
+        delay = 1.0
+        while True:
+            print 'Fetching %s' % url
+            try:
+                content = urllib2.urlopen(url)
+                content = StringIO.StringIO(content.read())
+                gzipper = gzip.GzipFile(fileobj=content)
+                interval_fudge -= (interval_fudge / 2.0)
+                break
+            except urllib2.HTTPError, e:
+                if e.code == 404:
+                    print "%s doesn't exist yet. Waiting %.1f seconds." % (url, delay)
+                    time.sleep(delay)
+                    delay = min(delay * 2, 13)
+                    interval_fudge += delay
+
+        obj = None
+        for event, elem in etree.iterparse(gzipper, events=('start', 'end')):
+            if event == 'start':
+                if elem.tag == 'changeset':
+                    obj = model.Changeset(
+                        int(elem.attrib['id']),
+                        isoToDatetime(elem.attrib.get('created_at')) if parse_timestamps else elem.attrib.get('created_at'),
+                        isoToDatetime(elem.attrib.get('closed_at')) if parse_timestamps else elem.attrib.get('closed_at'),
+                        maybeBool(elem.attrib['open']),
+                        maybeFloat(elem.get('min_lat')),
+                        maybeFloat(elem.get('max_lat')),
+                        maybeFloat(elem.get('min_lon')),
+                        maybeFloat(elem.get('max_lon')),
+                        elem.attrib.get('user'),
+                        maybeInt(elem.attrib.get('uid')),
+                        []
+                    )
+                elif elem.tag == 'tag':
+                    obj.tags.append(
+                        model.Tag(
+                            elem.attrib['k'],
+                            elem.attrib['v']
+                        )
+                    )
+            elif event == 'end':
+                if elem.tag == 'changeset':
+                    yield obj
+                    obj = None
+
+        sequenceNumber += 1
+
+
+def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True):
+    """Start processing an OSM diff stream and yield one changeset at a time to
+    the caller."""
 
     # If no start_sqn, assume to start from the most recent diff
     if not start_sqn:
