@@ -249,8 +249,8 @@ def iter_osm_file(f, parse_timestamps=True):
             if elem.tag == 'node':
                 obj = model.Node(
                     int(elem.attrib['id']),
-                    int(elem.attrib['version']),
-                    int(elem.attrib['changeset']),
+                    maybeInt(elem.get('version')),
+                    maybeInt(elem.get('changeset')),
                     elem.attrib.get('user'),
                     maybeInt(elem.attrib.get('uid')),
                     maybeBool(elem.attrib.get('visible')),
@@ -262,8 +262,8 @@ def iter_osm_file(f, parse_timestamps=True):
             elif elem.tag == 'way':
                 obj = model.Way(
                     int(elem.attrib['id']),
-                    int(elem.attrib['version']),
-                    int(elem.attrib['changeset']),
+                    maybeInt(elem.get('version')),
+                    maybeInt(elem.get('changeset')),
                     elem.attrib.get('user'),
                     maybeInt(elem.attrib.get('uid')),
                     maybeBool(elem.attrib.get('visible')),
@@ -283,8 +283,8 @@ def iter_osm_file(f, parse_timestamps=True):
             elif elem.tag == 'relation':
                 obj = model.Relation(
                     int(elem.attrib['id']),
-                    int(elem.attrib['version']),
-                    int(elem.attrib['changeset']),
+                    maybeInt(elem.get('version')),
+                    maybeInt(elem.get('changeset')),
                     elem.attrib.get('user'),
                     maybeInt(elem.attrib.get('uid')),
                     maybeBool(elem.attrib.get('visible')),
