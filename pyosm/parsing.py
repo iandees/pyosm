@@ -331,3 +331,22 @@ def iter_osm_file(f, parse_timestamps=True):
         elem.clear()
         while elem.getprevious() is not None:
             del elem.getparent()[0]
+
+def parse_osm_file(f, parse_timestamps=True):
+    """Parse a file-like containing OSM XML into memory and return an object with
+    the nodes, ways, and relations it contains. """
+
+    nodes = []
+    ways = []
+    relations = []
+
+    for p in iter_osm_file(f, parse_timestamps):
+
+        if type(p) == model.Node:
+            nodes.append(p)
+        elif type(p) == model.Way:
+            ways.append(p)
+        elif type(p) == model.Relation:
+            relations.append(p)
+
+    return (nodes, ways, relations)
