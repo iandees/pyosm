@@ -27,4 +27,4 @@ Assuming Ubuntu 12.04 and an active python virtualenv:
 Usage
 -----
 
-There are several examples in the (`examples`)[https://github.com/iandees/pyosm/tree/master/examples] directory.
+There are several examples in the [`examples`](https://github.com/iandees/pyosm/tree/master/examples) directory.
