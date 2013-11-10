@@ -32,7 +32,7 @@ def readState(state_file, sep='='):
     state = {}
 
     for line in state_file:
-        if line == '---':
+        if line.startswith('---'):
             continue
         if line[0] == '#':
             continue
@@ -53,9 +53,9 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
     if not start_sqn:
         u = urllib2.urlopen('%s/state.yaml' % base_url)
         state = readState(u, ': ')
-        sequenceNumber = state['sequence']
+        sequenceNumber = int(state['sequence'])
     else:
-        sequenceNumber = start_sqn
+        sequenceNumber = int(start_sqn)
 
     interval_fudge = 0.0
     while True:
