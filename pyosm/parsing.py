@@ -64,7 +64,6 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
 
         delay = 1.0
         while True:
-            print 'Fetching %s' % url
             try:
                 content = urllib2.urlopen(url)
                 content = StringIO.StringIO(content.read())
@@ -73,7 +72,6 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
                 break
             except urllib2.HTTPError, e:
                 if e.code == 404:
-                    print "%s doesn't exist yet. Waiting %.1f seconds." % (url, delay)
                     time.sleep(delay)
                     delay = min(delay * 2, 13)
                     interval_fudge += delay
@@ -207,7 +205,6 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
     while True:
         sqnStr = state['sequenceNumber'].zfill(9)
         url = '%s/%s/%s/%s.osc.gz' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
-        print "Fetching %s" % url
         content = urllib2.urlopen(url)
         content = StringIO.StringIO(content.read())
         gzipper = gzip.GzipFile(fileobj=content)
@@ -220,7 +217,6 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
         nextTs = stateTs + datetime.timedelta(seconds=expected_interval + interval_fudge)
         if datetime.datetime.utcnow() < nextTs:
             timeToSleep = (nextTs - datetime.datetime.utcnow()).total_seconds()
-            print "Waiting %s (%0.2f fudge) seconds for the next diff" % (timeToSleep, interval_fudge)
         else:
             timeToSleep = 0.0
         time.sleep(timeToSleep)
@@ -230,14 +226,12 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
         url = '%s/%s/%s/%s.state.txt' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
         delay = 1.0
         while True:
-            print 'Fetching %s' % url
             try:
                 u = urllib2.urlopen(url)
                 interval_fudge -= (interval_fudge / 2.0)
                 break
             except urllib2.HTTPError, e:
                 if e.code == 404:
-                    print "%s doesn't exist yet. Waiting %.1f seconds." % (url, delay)
                     time.sleep(delay)
                     delay = min(delay * 2, 13)
                     interval_fudge += delay
