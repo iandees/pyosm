@@ -212,7 +212,8 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
         content = StringIO.StringIO(content.read())
         gzipper = gzip.GzipFile(fileobj=content)
 
-        iter_osm_change_file(gzipper, parse_timestamps)
+        for a in iter_osm_change_file(gzipper, parse_timestamps):
+            yield a
 
         # After parsing the OSC, check to see how much time is remaining
         stateTs = datetime.datetime.strptime(state['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
