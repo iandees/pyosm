@@ -4,6 +4,7 @@ import urllib2
 import StringIO
 import gzip
 import time
+import os.path
 from lxml import etree
 
 def isoToDatetime(s):
@@ -41,13 +42,20 @@ def readState(state_file, sep='='):
 
     return state
 
-def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/changesets', expected_interval=60, parse_timestamps=True):
+def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/changesets', expected_interval=60, parse_timestamps=True, state_dir=None):
     """Start processing an OSM changeset stream and yield one (action, primitive) tuple
     at a time to the caller."""
 
     # This is a lot like the other osm_stream except there's no
     # state file for each of the diffs, so just push ahead until
     # we run into a 404.
+
+    # If the user specifies a state_dir, read the state from the statefile there
+    if state_dir and os.path.exists('%s/state.yaml' % state_dir):
+        with open('%s/state.yaml' % state_dir) as f:
+            state = readState(f, ': ')
+            start_sqn = state['sequence']
+
 
     # If no start_sqn, assume to start from the most recent changeset file
     if not start_sqn:
@@ -107,6 +115,9 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
 
         sequenceNumber += 1
 
+        if state_dir:
+            with open('%s/state.yaml' % state_dir, 'w') as f:
+                f.write('sequence: %d' % sequenceNumber)
 
 def iter_osm_change_file(f, parse_timestamps=True):
     action = None
@@ -187,9 +198,15 @@ def iter_osm_change_file(f, parse_timestamps=True):
             del elem.getparent()[0]
 
 
-def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True):
+def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True, state_dir=None):
     """Start processing an OSM diff stream and yield one changeset at a time to
     the caller."""
+
+    # If the user specifies a state_dir, read the state from the statefile there
+    if state_dir and os.path.exists('%s/state.txt' % state_dir):
+        with open('%s/state.txt' % state_dir) as f:
+            state = readState(f)
+            start_sqn = state['sequenceNumber']
 
     # If no start_sqn, assume to start from the most recent diff
     if not start_sqn:
@@ -236,7 +253,13 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
                     delay = min(delay * 2, 13)
                     interval_fudge += delay
 
-        state = readState(u)
+        if state_dir:
+            with open('%s/state.txt' % state_dir, 'w') as f:
+                f.write(u.read())
+            with open('%s/state.txt' % state_dir, 'r') as f:
+                state = readState(f)
+        else:
+            state = readState(u)
 
 def iter_osm_file(f, parse_timestamps=True):
     """Parse a file-like containing OSM XML and yield one OSM primitive at a time
