@@ -129,6 +129,7 @@ def database_write(q, lock):
     ways = 0
     relations = 0
     changesets = 0
+    users = 0
 
     while True:
         thing = q.get()
@@ -136,10 +137,11 @@ def database_write(q, lock):
         if type(thing) in (Node, Way, Relation, Changeset):
             tags = dict([(t.key, t.value) for t in thing.tags])
 
-            try:
+            cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [thing.uid, thing.user])
+            existing = cur.fetchone()
+            if not existing:
                 cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [thing.uid, thing.user])
-            except psycopg2.IntegrityError:
-                pass
+                users += 1
 
         if type(thing) == Changeset:
             if not thing.closed_at:
@@ -184,7 +186,7 @@ def database_write(q, lock):
                 pass
 
         if q.empty():
-            print "%10d changesets, %10d nodes, %10d ways, %5d relations" % (changesets, nodes, ways, relations)
+            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users" % (changesets, nodes, ways, relations, users)
 
             if lock.isSet():
                 break
