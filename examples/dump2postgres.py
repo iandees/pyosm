@@ -132,6 +132,10 @@ def database_write(q, lock):
     users = 0
 
     user_buffer = {}
+    nodes_buffer = []
+    ways_buffer = []
+    relations_buffer = []
+    buffer_size = 1000
 
     while True:
         thing = q.get()
@@ -196,8 +200,18 @@ def database_write(q, lock):
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
 
         if q.empty() and lock.isSet():
-            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
             break
+
+    for (uid, uname) in user_buffer.iteritems():
+        cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
+        existing = cur.fetchone()
+        if not existing:
+            cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [uid, uname])
+            users += 1
+    user_buffer = {}
+
+    print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
+
     print "Database finished"
 
 def iterate_changesets(q, lock):
