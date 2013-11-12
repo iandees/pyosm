@@ -10,7 +10,6 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.tz
 
-
 """
 -- Table: osm.changesets
 
@@ -135,7 +134,6 @@ def database_write(q, lock):
     nodes_buffer = []
     ways_buffer = []
     relations_buffer = []
-    buffer_size = 1000
 
     while True:
         thing = q.get()
@@ -173,34 +171,47 @@ def database_write(q, lock):
         elif type(thing) == Node:
             loc = "%0.7f, %0.7f" % (thing.lon, thing.lat)
 
-            try:
-                cur.execute("INSERT INTO osm.nodes (id, version, visible, changeset_id, timestamp, uid, tags, loc) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                    [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, loc])
-                nodes += 1
-            except psycopg2.IntegrityError:
-                pass
+            nodes_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, loc]))
+            nodes += 1
+
+            if nodes % 1000 == 0:
+                args_str = ','.join(nodes_buffer)
+                cur.execute("INSERT INTO osm.nodes (id, version, visible, changeset_id, timestamp, uid, tags, loc) VALUES " + args_str)
+                nodes_buffer = []
+
         elif type(thing) == Way:
-            try:
-                cur.execute("INSERT INTO osm.ways (id, version, visible, changeset_id, timestamp, uid, tags, nds) VALUES (%s, %s, %s, %s,  %s, %s, %s, %s)",
-                    [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, thing.nds])
-                ways += 1
-            except psycopg2.IntegrityError:
-                pass
+            ways_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, thing.nds]))
+
+            if ways % 1000 == 0:
+                args_str = ','.join(ways_buffer)
+                cur.execute("INSERT INTO osm.ways (id, version, visible, changeset_id, timestamp, uid, tags, nds) VALUES " + args_str)
+                ways_buffer = []
+
         elif type(thing) == Relation:
             members = [[m.type, str(m.ref), m.role] for m in thing.members]
 
-            try:
-                cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags, members) VALUES (%s, %s, %s,  %s, %s, %s, %s, %s)",
-                    [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, members])
-                relations += 1
-            except psycopg2.IntegrityError:
-                pass
+            relations_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, members]))
+
+            if relations % 1000 == 0:
+                args_str = ','.join(relations_buffer)
+                cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags, members) VALUES " + args_str)
+                relations_buffer = []
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
 
         if q.empty() and lock.isSet():
             break
+
+    if nodes_buffer:
+        args_str = ','.join(nodes_buffer)
+        cur.execute("INSERT INTO osm.nodes (id, version, visible, changeset_id, timestamp, uid, tags, loc) VALUES " + args_str)
+    if ways_buffer:
+        args_str = ','.join(ways_buffer)
+        cur.execute("INSERT INTO osm.ways (id, version, visible, changeset_id, timestamp, uid, tags, nds) VALUES " + args_str)
+    if relations_buffer:
+        args_str = ','.join(relations_buffer)
+        cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags, members) VALUES " + args_str)
 
     for (uid, uname) in user_buffer.iteritems():
         cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
@@ -217,11 +228,9 @@ def database_write(q, lock):
 def iterate_changesets(q, lock):
     print "Changesets starting"
     for changeset in iter_changeset_stream(state_dir='state'):
-        if type(changeset) == Finished:
-            if stop.isSet():
-                break
-        else:
-            q.put(changeset)
+        if type(changeset) == Finished and stop.isSet():
+            break
+        q.put(changeset)
     print "Changesets finished"
 
 def iterate_objects(q, lock):
@@ -232,7 +241,7 @@ def iterate_objects(q, lock):
                 break
         else:
             thing = thing._replace(visible=False if action == 'delete' else True)
-            q.put(thing)
+        q.put(thing)
     print "Objects finished"
 
 if __name__ == '__main__':
