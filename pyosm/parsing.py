@@ -113,6 +113,8 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
                     yield obj
                     obj = None
 
+        yield model.Finished(sequenceNumber, None)
+
         sequenceNumber += 1
 
         if state_dir:
@@ -231,6 +233,8 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
 
         # After parsing the OSC, check to see how much time is remaining
         stateTs = datetime.datetime.strptime(state['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
+        yield (None, model.Finished(state['sequenceNumber'], stateTs))
+
         nextTs = stateTs + datetime.timedelta(seconds=expected_interval + interval_fudge)
         if datetime.datetime.utcnow() < nextTs:
             timeToSleep = (nextTs - datetime.datetime.utcnow()).total_seconds()
