@@ -186,7 +186,7 @@ def database_write(q, lock):
                 pass
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
-            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users" % (changesets, nodes, ways, relations, users)
+            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
 
         if q.empty() and lock.isSet():
             break
