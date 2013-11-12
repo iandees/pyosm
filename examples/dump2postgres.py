@@ -1,9 +1,11 @@
 """Stream both changesets and objects to a database."""
 
-from multiprocessing.queues import SimpleQueue
-from multiprocessing import Process
+import Queue
+from threading import Thread, Event
 from pyosm.parsing import iter_changeset_stream, iter_osm_stream
-from pyosm.model import Changeset, Node, Way, Relation
+from pyosm.model import Changeset, Node, Way, Relation, Finished
+import signal
+import time
 import psycopg2
 import psycopg2.extras
 import psycopg2.tz
@@ -115,7 +117,8 @@ ALTER TABLE osm.users
 
 """
 
-def database_write(q):
+def database_write(q, lock):
+    print "Database write starting"
     conn = psycopg2.connect(database='iandees', user='iandees', host='localhost')
     conn.autocommit = True
     psycopg2.extras.register_hstore(conn)
@@ -129,12 +132,14 @@ def database_write(q):
 
     while True:
         thing = q.get()
-        tags = dict([(t.key, t.value) for t in thing.tags])
 
-        try:
-            cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [thing.uid, thing.user])
-        except psycopg2.IntegrityError:
-            pass
+        if type(thing) in (Node, Way, Relation, Changeset):
+            tags = dict([(t.key, t.value) for t in thing.tags])
+
+            try:
+                cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [thing.uid, thing.user])
+            except psycopg2.IntegrityError:
+                pass
 
         if type(thing) == Changeset:
             if not thing.closed_at:
@@ -181,26 +186,50 @@ def database_write(q):
         if q.empty():
             print "%10d changesets, %10d nodes, %10d ways, %5d relations" % (changesets, nodes, ways, relations)
 
-def iterate_changesets(q):
-    for changeset in iter_changeset_stream(state_dir='state'):
-        q.put(changeset)
+            if lock.isSet():
+                break
+    print "Database finished"
 
-def iterate_objects(q):
+def iterate_changesets(q, lock):
+    print "Changesets starting"
+    for changeset in iter_changeset_stream(state_dir='state'):
+        if type(changeset) == Finished:
+            if stop.isSet():
+                break
+        else:
+            q.put(changeset)
+    print "Changesets finished"
+
+def iterate_objects(q, lock):
+    print "Objects starting"
     for (action, thing) in iter_osm_stream(state_dir='state'):
-        thing = thing._replace(visible=False if action == 'delete' else True)
-        q.put(thing)
+        if type(thing) == Finished:
+            if stop.isSet():
+                break
+        else:
+            thing = thing._replace(visible=False if action == 'delete' else True)
+            q.put(thing)
+    print "Objects finished"
 
 if __name__ == '__main__':
-    db_q = SimpleQueue()
+    print "Main starting"
+    stop = Event()
+    db_q = Queue.Queue()
 
-    d = Process(target=database_write, args=(db_q,))
-    c = Process(target=iterate_changesets, args=(db_q,))
-    o = Process(target=iterate_objects, args=(db_q,))
+    def shutdown_handler(signum, frame):
+        print "Shutting down."
+        stop.set()
+    signal.signal(signal.SIGINT, shutdown_handler)
+
+    d = Thread(target=database_write, args=(db_q, stop,))
+    c = Thread(target=iterate_changesets, args=(db_q, stop,))
+    o = Thread(target=iterate_objects, args=(db_q, stop,))
 
     d.start()
     c.start()
     o.start()
 
-    d.join()
-    c.join()
-    o.join()
+    while not stop.isSet():
+        time.sleep(5)
+
+    print "Main finished"
