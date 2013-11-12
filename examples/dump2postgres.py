@@ -131,17 +131,24 @@ def database_write(q, lock):
     changesets = 0
     users = 0
 
+    user_buffer = {}
+
     while True:
         thing = q.get()
 
         if type(thing) in (Node, Way, Relation, Changeset):
             tags = dict([(t.key, t.value) for t in thing.tags])
 
-            cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [thing.uid, thing.user])
-            existing = cur.fetchone()
-            if not existing:
-                cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [thing.uid, thing.user])
-                users += 1
+            user_buffer[thing.uid] = thing.user
+
+            if len(user_buffer) > 500:
+                for (uid, uname) in user_buffer.iteritems():
+                    cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
+                    existing = cur.fetchone()
+                    if not existing:
+                        cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [uid, uname])
+                        users += 1
+                user_buffer = {}
 
         if type(thing) == Changeset:
             if not thing.closed_at:
