@@ -185,11 +185,11 @@ def database_write(q, lock):
             except psycopg2.IntegrityError:
                 pass
 
-        if q.empty():
+        if (changesets + nodes + ways + relations + users) % 1000 == 0:
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users" % (changesets, nodes, ways, relations, users)
 
-            if lock.isSet():
-                break
+        if q.empty() and lock.isSet():
+            break
     print "Database finished"
 
 def iterate_changesets(q, lock):
