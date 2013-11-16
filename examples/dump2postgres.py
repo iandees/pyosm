@@ -135,7 +135,7 @@ def database_write(q, lock):
     ways_buffer = []
     relations_buffer = []
 
-    while True:
+    while not q.empty() and not lock.isSet():
         thing = q.get()
 
         if type(thing) in (Node, Way, Relation, Changeset):
@@ -181,6 +181,7 @@ def database_write(q, lock):
 
         elif type(thing) == Way:
             ways_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, thing.nds]))
+            ways += 1
 
             if ways % 1000 == 0:
                 args_str = ','.join(ways_buffer)
@@ -191,6 +192,7 @@ def database_write(q, lock):
             members = [[m.type, str(m.ref), m.role] for m in thing.members]
 
             relations_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, members]))
+            relations += 1
 
             if relations % 1000 == 0:
                 args_str = ','.join(relations_buffer)
@@ -199,9 +201,6 @@ def database_write(q, lock):
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
-
-        if q.empty() and lock.isSet():
-            break
 
     if nodes_buffer:
         args_str = ','.join(nodes_buffer)
