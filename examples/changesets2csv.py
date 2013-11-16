@@ -20,7 +20,7 @@ buffers = ThingHolder([],[],[],[])
 headers = {
     'changesets': ['id', 'created_at', 'closed_at', 'user', 'uid', 'tags', 'bbox'],
     'nodes': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'loc'],
-    'ways': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'nds', 'line'],
+    'ways': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'nds'],
     'relations': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'members']
 }
 
