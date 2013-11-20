@@ -88,7 +88,7 @@ for p in iter_osm_file(open(sys.argv[1], 'r'), parse_timestamps=False):
             p.uid,
             p.visible,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
-            '{' + ','.join(p.nds) + '}'
+            '{' + ','.join(str(nd) for nd in p.nds) + '}'
         ])
         counter.ways += 1
 

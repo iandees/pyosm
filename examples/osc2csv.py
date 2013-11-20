@@ -88,7 +88,7 @@ for (verb, p) in iter_osm_stream(start_sqn=3473, base_url='http://planet.openstr
             p.uid,
             p.visible,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
-            '{' + ','.join(p.nds) + '}'
+            '{' + ','.join(str(nd) for nd in p.nds) + '}'
         ])
         counter.ways += 1
 
