@@ -53,7 +53,7 @@ def write_and_clear_buffer(kind):
 cut_new_file('changesets')
 
 sys.stdout.write('%8d changesets, %10d nodes, %10d ways, %10d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
-for changeset in iter_changeset_stream(start_sqn=141042, parse_timestamps=False):
+for changeset in iter_changeset_stream(start_sqn=141042, parse_timestamps=False, state_dir='state'):
 
     if type(changeset) == Finished:
         continue
