@@ -137,6 +137,9 @@ for p in iter_osm_file(open(sys.argv[1], 'r'), parse_timestamps=False):
         if counter.changesets % size_of_slice == 0:
             cut_new_file('changesets')
 
+    elif type(p) == pyosm.model.Finished:
+        continue
+
     total += 1
 
     if total % size_of_buffer == 0:
