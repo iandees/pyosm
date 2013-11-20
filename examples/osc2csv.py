@@ -35,7 +35,7 @@ def cut_new_file(kind):
     if old_gz:
         old_gz.close()
 
-    kind_gz = gzip.GzipFile('%s.csv.%05d.gz' % (kind, getattr(counter, kind) / size_of_slice), 'w')
+    kind_gz = gzip.GzipFile('%s.viadiff.csv.%05d.gz' % (kind, getattr(counter, kind) / size_of_slice), 'w')
     setattr(gzips, kind, kind_gz)
 
     kind_csv = unicodecsv.writer(kind_gz)
