@@ -65,7 +65,7 @@ for (verb, p) in iter_osm_stream(start_sqn=3473, base_url='http://planet.openstr
             p.changeset,
             p.user,
             p.uid,
-            p.visible,
+            False if verb == 'delete' else True,
             p.timestamp,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
             '%0.7f, %0.7f' % (p.lon, p.lat) if p.lat else None
@@ -86,7 +86,7 @@ for (verb, p) in iter_osm_stream(start_sqn=3473, base_url='http://planet.openstr
             p.timestamp,
             p.user,
             p.uid,
-            p.visible,
+            False if verb == 'delete' else True,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
             '{' + ','.join(str(nd) for nd in p.nds) + '}'
         ])
@@ -106,7 +106,7 @@ for (verb, p) in iter_osm_stream(start_sqn=3473, base_url='http://planet.openstr
             p.timestamp,
             p.user,
             p.uid,
-            p.visible,
+            False if verb == 'delete' else True,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
             '{' + ','.join(['{"%s","%s","%s"}' % (r.type, r.ref, r.role) for r in p.members]) + '}'
         ])
