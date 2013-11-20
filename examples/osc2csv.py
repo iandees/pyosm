@@ -21,7 +21,7 @@ buffers = ThingHolder([],[],[],[])
 headers = {
     'changesets': ['id', 'created_at', 'closed_at', 'user', 'uid', 'tags', 'bbox'],
     'nodes': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'loc'],
-    'ways': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'nds', 'line'],
+    'ways': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'nds'],
     'relations': ['id', 'version', 'changeset', 'user', 'uid', 'visible', 'timestamp', 'tags', 'members']
 }
 
@@ -63,10 +63,10 @@ for (verb, p) in iter_osm_stream(start_sqn=8333, base_url='http://planet.openstr
             p.id,
             p.version,
             p.changeset,
-            p.timestamp,
             p.user,
             p.uid,
             p.visible,
+            p.timestamp,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
             '%0.7f, %0.7f' % (p.lon, p.lat) if p.lat else None
         ])
@@ -88,8 +88,7 @@ for (verb, p) in iter_osm_stream(start_sqn=8333, base_url='http://planet.openstr
             p.uid,
             p.visible,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
-            p.nds,
-            None
+            '{' + ','.join(p.nds) + '}'
         ])
         counter.ways += 1
 
@@ -109,7 +108,7 @@ for (verb, p) in iter_osm_stream(start_sqn=8333, base_url='http://planet.openstr
             p.uid,
             p.visible,
             ','.join(['"%s"=>"%s"' % (re.escape(tag.key), re.escape(tag.value)) for tag in p.tags]),
-            '[%s]' % (','.join(['["%s","%s","%s"]' % (r.type, r.ref, r.role) for r in p.members]))
+            '{' + ','.join(['{"%s","%s","%s"}' % (r.type, r.ref, r.role) for r in p.members]) + '}'
         ])
         counter.relations += 1
 
@@ -137,6 +136,9 @@ for (verb, p) in iter_osm_stream(start_sqn=8333, base_url='http://planet.openstr
 
         if counter.changesets % size_of_slice == 0:
             cut_new_file('changesets')
+
+    elif type(p) == pyosm.model.Finished:
+        continue
 
     total += 1
 
