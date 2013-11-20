@@ -56,7 +56,7 @@ cut_new_file('ways')
 cut_new_file('relations')
 
 sys.stdout.write('%8d changesets, %10d nodes, %10d ways, %10d relations' % (counter.changesets, counter.nodes, counter.ways, counter.relations))
-for (verb, p) in iter_osm_stream(start_sqn=3473, base_url='http://planet.openstreetmap.org/replication/hour', parse_timestamps=False):
+for (verb, p) in iter_osm_stream(start_sqn=143, base_url='http://planet.openstreetmap.org/replication/day', parse_timestamps=False):
 
     if type(p) == pyosm.model.Node:
         buffers.nodes.append([
