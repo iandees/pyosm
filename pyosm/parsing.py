@@ -217,6 +217,7 @@ def iter_realtime_osm_stream(start_sqn=None, base_url='http://planet.openstreetm
     content = urllib2.urlopen(url)
 
     while True:
+        # Format is described here http://wiki.openstreetmap.org/wiki/Osmosis/Replication#Streaming_Replication_Wire_Protocol
         state_size = int(content.readline().strip())
         state_data = content.read(state_size)
         state = readState(state_data.strip().split('\n'))
