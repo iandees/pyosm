@@ -51,11 +51,14 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
     # we run into a 404.
 
     # If the user specifies a state_dir, read the state from the statefile there
-    if state_dir and os.path.exists('%s/state.yaml' % state_dir):
-        with open('%s/state.yaml' % state_dir) as f:
-            state = readState(f, ': ')
-            start_sqn = state['sequence']
+    if state_dir:
+        if not os.path.exists(state_dir):
+            raise Exception('Specified state_dir "%s" doesn\'t exist.' % state_dir)
 
+        if os.path.exists('%s/state.yaml' % state_dir):
+            with open('%s/state.yaml' % state_dir) as f:
+                state = readState(f, ': ')
+                start_sqn = state['sequence']
 
     # If no start_sqn, assume to start from the most recent changeset file
     if not start_sqn:
@@ -205,10 +208,14 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
     the caller."""
 
     # If the user specifies a state_dir, read the state from the statefile there
-    if state_dir and os.path.exists('%s/state.txt' % state_dir):
-        with open('%s/state.txt' % state_dir) as f:
-            state = readState(f)
-            start_sqn = state['sequenceNumber']
+    if state_dir:
+        if not os.path.exists(state_dir):
+            raise Exception('Specified state_dir "%s" doesn\'t exist.' % state_dir)
+
+        if os.path.exists('%s/state.txt' % state_dir):
+            with open('%s/state.txt' % state_dir) as f:
+                state = readState(f)
+                start_sqn = state['sequenceNumber']
 
     # If no start_sqn, assume to start from the most recent diff
     if not start_sqn:
