@@ -202,6 +202,37 @@ def iter_osm_change_file(f, parse_timestamps=True):
         while elem.getprevious() is not None:
             del elem.getparent()[0]
 
+def iter_realtime_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/streaming', parse_timestamps=True, state_dir=None):
+    # If the user specifies a state_dir, read the state from the statefile there
+    if state_dir:
+        if not os.path.exists(state_dir):
+            raise Exception('Specified state_dir "%s" doesn\'t exist.' % state_dir)
+
+        if os.path.exists('%s/realtime_state.txt' % state_dir):
+            with open('%s/realtime_state.txt' % state_dir) as f:
+                state = readState(f)
+                start_sqn = state['sequenceNumber']
+
+    url = '%s/replicationData/%s/tail' % (base_url, start_sqn)
+    content = urllib2.urlopen(url)
+
+    while True:
+        state_size = int(content.readline().strip())
+        state_data = content.read(state_size)
+        state = readState(state_data.strip().split('\n'))
+
+        diff_size = int(content.readline().strip())
+        diff_data = gzip.GzipFile(fileobj=StringIO.StringIO(content.read(diff_size)))
+
+        for a in iter_osm_change_file(diff_data, parse_timestamps):
+            yield a
+
+        stateTs = datetime.datetime.strptime(state['timestamp'], "%Y-%m-%dT%H:%M:%SZ")
+        yield (None, model.Finished(state['sequenceNumber'], stateTs))
+
+        if state_dir:
+            with open('%s/realtime_state.txt' % state_dir, 'w') as f:
+                f.write(state_data)
 
 def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True, state_dir=None):
     """Start processing an OSM diff stream and yield one changeset at a time to
