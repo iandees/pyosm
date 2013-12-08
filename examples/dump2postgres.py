@@ -124,6 +124,10 @@ def database_write(q, lock):
     cur = conn.cursor()
     cur.execute("SET TIME ZONE 'UTC';")
 
+    # Wait til we get Finishes for both changeset and object streams before
+    # closing the database writer
+    finishes_received = 0
+
     nodes = 0
     ways = 0
     relations = 0
@@ -135,15 +139,23 @@ def database_write(q, lock):
     ways_buffer = []
     relations_buffer = []
 
-    while not q.empty() and not lock.isSet():
+    while True:
         thing = q.get()
+
+        if lock.isSet():
+            if type(thing) == Finished:
+                print "Received finish"
+                finishes_received += 1
+
+            if finishes_received >= 2:
+                break
 
         if type(thing) in (Node, Way, Relation, Changeset):
             tags = dict([(t.key, t.value) for t in thing.tags])
 
             user_buffer[thing.uid] = thing.user
 
-            if len(user_buffer) > 500:
+            if len(user_buffer) > 10:
                 for (uid, uname) in user_buffer.iteritems():
                     cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
                     existing = cur.fetchone()
@@ -153,9 +165,6 @@ def database_write(q, lock):
                 user_buffer = {}
 
         if type(thing) == Changeset:
-            if not thing.closed_at:
-                continue
-
             bbox = None
             if thing.min_lon is not None:
                 bbox = "%0.7f, %0.7f, %0.7f, %0.7f" % (thing.min_lon, thing.min_lat, thing.max_lon, thing.max_lat)
@@ -228,6 +237,7 @@ def iterate_changesets(q, lock):
     print "Changesets starting"
     for changeset in iter_changeset_stream(state_dir='state'):
         if type(changeset) == Finished and stop.isSet():
+            q.put(changeset)
             break
         q.put(changeset)
     print "Changesets finished"
@@ -237,6 +247,7 @@ def iterate_objects(q, lock):
     for (action, thing) in iter_osm_stream(state_dir='state'):
         if type(thing) == Finished:
             if stop.isSet():
+                q.put(thing)
                 break
         else:
             thing = thing._replace(visible=False if action == 'delete' else True)
