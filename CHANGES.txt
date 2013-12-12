@@ -1,3 +1,4 @@
 v0.1, 18-August-2013 -- Initial release.
 v0.2, 10-November-2013 -- Add support for state files across sessions.
 v0.3, 12-December-2013 -- Add support for notes using the RSS feed.
+v0.3.1, 12-December-2013 -- Forgot to send the action verb with notes feed.

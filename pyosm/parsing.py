@@ -486,7 +486,7 @@ def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
                 last_seen_guid = guid
             else:
                 note_id = int(guid.split('/')[-1].split('#c')[0])
-                new_notes.append(get_note(note_id, parse_timestamps))
+                new_notes.append((action, get_note(note_id, parse_timestamps)))
 
         # We yield the reversed list because we want to yield in change order
         # (i.e. "oldest to most current")
