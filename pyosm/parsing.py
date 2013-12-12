@@ -14,6 +14,14 @@ def isoToDatetime(s):
     else:
         return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
 
+def noteTimeToDatetime(s):
+    """Parse a datetime out of the Notes RSS feed."""
+    if s is None:
+        return s
+    else:
+        # 2013-05-01 08:10:42 UTC
+        return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S UTC")
+
 def maybeInt(s):
     return int(s) if s is not None else s
 
@@ -415,3 +423,74 @@ def parse_osm_file(f, parse_timestamps=True):
             relations.append(p)
 
     return (nodes, ways, relations)
+
+def get_note(note_id, parse_timestamps=True):
+    u = urllib2.urlopen('http://www.openstreetmap.org/api/0.6/notes/%d' % note_id)
+    tree = etree.parse(u)
+    note_elem = tree.xpath('/osm/note')[0]
+
+    def parse_comment(comment_element):
+        user_elem = comment_element.xpath('user')
+        uid_elem = comment_element.xpath('uid')
+        return model.Comment(
+            created_at=noteTimeToDatetime(comment_element.xpath('date')[0].text) if parse_timestamps else comment_element.xpath('date')[0].text,
+            user=user_elem[0].text if user_elem else None,
+            uid=int(uid_elem[0].text) if uid_elem else None,
+            action=comment_element.xpath('action')[0].text,
+            text=comment_element.xpath('text')[0].text
+        )
+
+    closed_elem = note_elem.xpath('date_closed')
+    if closed_elem:
+        closed_at = noteTimeToDatetime(closed_elem[0].text) if parse_timestamps else closed_elem[0].text
+    else:
+        closed_at = None
+
+    return model.Note(
+        id=int(note_elem.xpath('id')[0].text),
+        lat=float(note_elem.attrib['lat']),
+        lon=float(note_elem.attrib['lon']),
+        created_at=noteTimeToDatetime(note_elem.xpath('date_created')[0].text) if parse_timestamps else note_elem.xpath('date_created')[0].text,
+        closed_at=closed_at,
+        status=note_elem.xpath('status')[0].text,
+        comments=[parse_comment(c) for c in note_elem.xpath('comments/comment')]
+    )
+
+def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
+    """ Parses the global OSM Notes feed and yields as much Note information as possible. """
+
+    last_seen_guid = None
+    while True:
+        u = urllib2.urlopen('http://www.openstreetmap.org/api/0.6/notes/feed?limit=%d' % feed_limit)
+
+        tree = etree.parse(u)
+
+        new_notes = []
+        for note_item in tree.xpath('/rss/channel/item'):
+            title = note_item.xpath('title')[0].text
+
+            if title.startswith('new note ('):
+                action = 'create'
+            elif title.startswith('new comment ('):
+                action = 'comment'
+            elif title.startswith('closed note ('):
+                action = 'close'
+
+            guid = note_item.xpath('link')[0].text
+
+            if last_seen_guid == guid:
+                break
+            elif last_seen_guid == None:
+                # The first time through we want the first item to be the "last seen"
+                # because the RSS feed is newest-to-oldest
+                last_seen_guid = guid
+            else:
+                note_id = int(guid.split('/')[-1].split('#c')[0])
+                new_notes.append(get_note(note_id, parse_timestamps))
+
+        # We yield the reversed list because we want to yield in change order
+        # (i.e. "oldest to most current")
+        for note in reversed(new_notes):
+            yield note
+
+        time.sleep(interval)
