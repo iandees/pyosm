@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='pyosm',
-    version='0.3.1',
+    version='0.3.2',
     author='Ian Dees',
     author_email='ian.dees@gmail.com',
     packages=['pyosm'],
