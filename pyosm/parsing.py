@@ -493,4 +493,6 @@ def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
         for note in reversed(new_notes):
             yield note
 
+        yield model.Finished()
+
         time.sleep(interval)
