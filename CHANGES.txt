@@ -3,3 +3,4 @@ v0.2, 10-November-2013 -- Add support for state files across sessions.
 v0.3, 12-December-2013 -- Add support for notes using the RSS feed.
 v0.3.1, 12-December-2013 -- Forgot to send the action verb with notes feed.
 v0.3.2, 17-December-2013 -- Yield a Finished after parsing a chunk of notes.
+v0.3.3, 18-December-2013 -- Adding readme to the manifest.
