@@ -476,6 +476,7 @@ def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
             elif title.startswith('closed note ('):
                 action = 'close'
 
+            # Note that (at least for now) the link and guid are the same in the feed.
             guid = note_item.xpath('link')[0].text
 
             if last_seen_guid == guid:
@@ -493,6 +494,6 @@ def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
         for note in reversed(new_notes):
             yield note
 
-        yield model.Finished()
+        yield model.Finished(None, None)
 
         time.sleep(interval)
