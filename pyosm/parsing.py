@@ -1,7 +1,13 @@
-import model
+import pyosm.model as model
 import datetime
-import urllib2
-import StringIO
+try:
+    import urllib.request as urllib2
+except ImportError:
+    import urllib2
+try:
+    import StringIO
+except ImportError:
+    import os.StringIO as StringIO
 import gzip
 import time
 import os.path
