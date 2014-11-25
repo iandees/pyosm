@@ -7,7 +7,7 @@ except ImportError:
 try:
     import StringIO
 except ImportError:
-    from os import StringIO
+    from io import StringIO
 import gzip
 import time
 import os.path
