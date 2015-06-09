@@ -1,7 +1,13 @@
-import model
+import pyosm.model as model
 import datetime
-import urllib2
-import StringIO
+try:
+    import urllib.request as urllib2
+except ImportError:
+    import urllib2
+try:
+    import StringIO
+except ImportError:
+    from io import StringIO
 import gzip
 import time
 import os.path
@@ -89,7 +95,7 @@ def iter_changeset_stream(start_sqn=None, base_url='http://planet.openstreetmap.
                 gzipper = gzip.GzipFile(fileobj=content)
                 interval_fudge -= (interval_fudge / 2.0)
                 break
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 if e.code == 404:
                     time.sleep(delay)
                     delay = min(delay * 2, 13)
@@ -298,7 +304,7 @@ def iter_osm_stream(start_sqn=None, base_url='http://planet.openstreetmap.org/re
                 u = urllib2.urlopen(url)
                 interval_fudge -= (interval_fudge / 2.0)
                 break
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 if e.code == 404:
                     time.sleep(delay)
                     delay = min(delay * 2, 13)

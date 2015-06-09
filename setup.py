@@ -12,7 +12,7 @@ setup(
     long_description=open('README.md').read(),
     keywords = ['osm', 'openstreetmap', 'xml', 'parsing'],
     install_requires=[
-        'lxml==3.2.3'
+        'lxml>=3.2.3'
     ]
 )
 
