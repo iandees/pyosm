@@ -11,10 +11,12 @@ import psycopg2.extras
 import psycopg2.tz
 
 """
+DROP TYPE IF EXISTS element_type CASCADE;
+CREATE TYPE element_type AS ENUM ('N', 'W', 'R');
+
 -- Table: osm.changesets
 
-DROP TABLE osm.changesets;
-
+DROP TABLE IF EXISTS osm.changesets;
 CREATE TABLE osm.changesets
 (
   id integer NOT NULL,
@@ -28,13 +30,11 @@ CREATE TABLE osm.changesets
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE osm.changesets
-  OWNER TO iandees;
+ALTER TABLE osm.changesets OWNER TO iandees;
 
 -- Table: osm.nodes
 
-DROP TABLE osm.nodes;
-
+DROP TABLE IF EXISTS osm.nodes;
 CREATE TABLE osm.nodes
 (
   id bigint NOT NULL,
@@ -50,13 +50,12 @@ CREATE TABLE osm.nodes
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE osm.nodes
-  OWNER TO iandees;
+ALTER TABLE osm.nodes OWNER TO iandees;
+CREATE INDEX ON osm.nodes (changeset_id);
 
 -- Table: osm.ways
 
-DROP TABLE osm.ways;
-
+DROP TABLE IF EXISTS osm.ways;
 CREATE TABLE osm.ways
 (
   id bigint NOT NULL,
@@ -72,13 +71,12 @@ CREATE TABLE osm.ways
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE osm.ways
-  OWNER TO iandees;
+ALTER TABLE osm.ways OWNER TO iandees;
+CREATE INDEX ON osm.ways (changeset_id);
 
 -- Table: osm.relations
 
-DROP TABLE osm.relations;
-
+DROP TABLE IF EXISTS osm.relations;
 CREATE TABLE osm.relations
 (
   id bigint NOT NULL,
@@ -94,13 +92,30 @@ CREATE TABLE osm.relations
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE osm.relations
-  OWNER TO iandees;
+ALTER TABLE osm.relations OWNER TO iandees;
+CREATE INDEX ON osm.relations (changeset_id);
+
+-- Table: osm.relation_members
+
+DROP TABLE IF EXISTS osm.relation_members;
+CREATE TABLE osm.relation_members
+(
+  id bigint NOT NULL,
+  version integer NOT NULL,
+  member_id bigint NOT NULL,
+  member_type character(1) NOT NULL,
+  member_role text NOT NULL,
+  sequence_id int NOT NULL,
+  CONSTRAINT relation_members_pkey PRIMARY KEY (id, version, sequence_id)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE osm.relation_members OWNER TO iandees;
 
 -- Table: osm.users
 
-DROP TABLE osm.users;
-
+DROP TABLE IF EXISTS osm.users;
 CREATE TABLE osm.users
 (
   id integer NOT NULL,
@@ -111,8 +126,7 @@ CREATE TABLE osm.users
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE osm.users
-  OWNER TO iandees;
+ALTER TABLE osm.users OWNER TO iandees;
 
 """
 
@@ -138,6 +152,7 @@ def database_write(q, lock):
     nodes_buffer = []
     ways_buffer = []
     relations_buffer = []
+    members_buffer = []
 
     while True:
         thing = q.get()
@@ -198,15 +213,22 @@ def database_write(q, lock):
                 ways_buffer = []
 
         elif type(thing) == Relation:
-            members = [[m.type, str(m.ref), m.role] for m in thing.members]
+            seq_n = 0
+            for m in thing.members:
+                members_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, m.ref, m.type[0], m.role, seq_n]))
+                seq_n += 1
 
-            relations_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, members]))
+            relations_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags]))
             relations += 1
 
-            if relations % 1000 == 0:
+            if relations % 100 == 0:
                 args_str = ','.join(relations_buffer)
-                cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags, members) VALUES " + args_str)
+                cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags) VALUES " + args_str)
                 relations_buffer = []
+
+                args_str = ','.join(members_buffer)
+                cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
+                members_buffer = []
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
@@ -219,7 +241,9 @@ def database_write(q, lock):
         cur.execute("INSERT INTO osm.ways (id, version, visible, changeset_id, timestamp, uid, tags, nds) VALUES " + args_str)
     if relations_buffer:
         args_str = ','.join(relations_buffer)
-        cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags, members) VALUES " + args_str)
+        cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags) VALUES " + args_str)
+        args_str = ','.join(members_buffer)
+        cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
 
     for (uid, uname) in user_buffer.iteritems():
         cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
