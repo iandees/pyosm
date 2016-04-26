@@ -35,13 +35,7 @@ def maybeFloat(s):
     return float(s) if s is not None else s
 
 def maybeBool(s):
-    if s is not None:
-        if s == 'true':
-            return True
-        else:
-            return False
-    else:
-        return s
+    return s == 'true' if s is not None else s
 
 def readState(state_file, sep='='):
     state = {}
