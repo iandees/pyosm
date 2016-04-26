@@ -52,6 +52,7 @@ WITH (
 );
 ALTER TABLE osm.nodes OWNER TO iandees;
 CREATE INDEX ON osm.nodes (changeset_id);
+CREATE INDEX ON osm.nodes (timestamp);
 
 -- Table: osm.ways
 
@@ -73,6 +74,7 @@ WITH (
 );
 ALTER TABLE osm.ways OWNER TO iandees;
 CREATE INDEX ON osm.ways (changeset_id);
+CREATE INDEX ON osm.ways (timestamp);
 
 -- Table: osm.relations
 
@@ -94,6 +96,7 @@ WITH (
 );
 ALTER TABLE osm.relations OWNER TO iandees;
 CREATE INDEX ON osm.relations (changeset_id);
+CREATE INDEX ON osm.relations (timestamp);
 
 -- Table: osm.relation_members
 
@@ -147,6 +150,7 @@ def database_write(q, lock):
     relations = 0
     changesets = 0
     users = 0
+    sequence = 0
 
     user_buffer = {}
     nodes_buffer = []
@@ -157,29 +161,32 @@ def database_write(q, lock):
     while True:
         thing = q.get()
 
-        if lock.isSet():
-            if type(thing) == Finished:
-                print "Received finish"
+        if isinstance(thing, Finished):
+            sequence = thing.sequence
+            if lock.isSet():
+                print "Received finishon sequence {}".format(thing.sequence)
                 finishes_received += 1
 
             if finishes_received >= 2:
                 break
 
-        if type(thing) in (Node, Way, Relation, Changeset):
+        if isinstance(thing, (Node, Way, Relation, Changeset)):
             tags = dict([(t.key, t.value) for t in thing.tags])
 
-            user_buffer[thing.uid] = thing.user
+        if isinstance(thing, (Node, Way, Relation)):
+            user_buffer[thing.uid] = (thing.user, thing.timestamp)
 
             if len(user_buffer) > 10:
-                for (uid, uname) in user_buffer.iteritems():
+                for (uid, user_tstamp) in user_buffer.items():
+                    (uname, tstamp) = user_tstamp
                     cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
                     existing = cur.fetchone()
                     if not existing:
-                        cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [uid, uname])
+                        cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, %s)", [uid, uname, tstamp])
                         users += 1
                 user_buffer = {}
 
-        if type(thing) == Changeset:
+        if isinstance(thing, Changeset):
             bbox = None
             if thing.min_lon is not None:
                 bbox = "%0.7f, %0.7f, %0.7f, %0.7f" % (thing.min_lon, thing.min_lat, thing.max_lon, thing.max_lat)
@@ -192,7 +199,7 @@ def database_write(q, lock):
                     [thing.uid, thing.created_at, thing.closed_at, bbox, tags, thing.id])
 
             changesets += 1
-        elif type(thing) == Node:
+        elif isinstance(thing, Node):
             loc = "%0.7f, %0.7f" % (thing.lon, thing.lat)
 
             nodes_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, loc]))
@@ -203,7 +210,7 @@ def database_write(q, lock):
                 cur.execute("INSERT INTO osm.nodes (id, version, visible, changeset_id, timestamp, uid, tags, loc) VALUES " + args_str)
                 nodes_buffer = []
 
-        elif type(thing) == Way:
+        elif isinstance(thing, Way):
             ways_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, thing.visible, thing.changeset, thing.timestamp, thing.uid, tags, thing.nds]))
             ways += 1
 
@@ -212,7 +219,7 @@ def database_write(q, lock):
                 cur.execute("INSERT INTO osm.ways (id, version, visible, changeset_id, timestamp, uid, tags, nds) VALUES " + args_str)
                 ways_buffer = []
 
-        elif type(thing) == Relation:
+        elif isinstance(thing, Relation):
             seq_n = 0
             for m in thing.members:
                 members_buffer.append(cur.mogrify('(%s,%s,%s,%s,%s,%s)', [thing.id, thing.version, m.ref, m.type[0], m.role, seq_n]))
@@ -231,7 +238,7 @@ def database_write(q, lock):
                 members_buffer = []
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
-            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
+            print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue, %s sqn" % (changesets, nodes, ways, relations, users, q.qsize(), sequence)
 
     if nodes_buffer:
         args_str = ','.join(nodes_buffer)
@@ -245,15 +252,16 @@ def database_write(q, lock):
         args_str = ','.join(members_buffer)
         cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
 
-    for (uid, uname) in user_buffer.iteritems():
+    for (uid, user_tstamp) in user_buffer.iteritems():
+        (uname, tstamp) = user_tstamp
         cur.execute("SELECT * FROM osm.users WHERE id=%s and display_name=%s", [uid, uname])
         existing = cur.fetchone()
         if not existing:
-            cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, NOW())", [uid, uname])
+            cur.execute("INSERT INTO osm.users (id, display_name, timestamp) VALUES (%s, %s, %s)", [uid, uname, tstamp])
             users += 1
     user_buffer = {}
 
-    print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue" % (changesets, nodes, ways, relations, users, q.qsize())
+    print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue, %s sqn" % (changesets, nodes, ways, relations, users, q.qsize(), sequence)
 
     print "Database finished"
 
