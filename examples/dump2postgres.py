@@ -164,7 +164,7 @@ def database_write(q, lock):
         if isinstance(thing, Finished):
             sequence = thing.sequence
             if lock.isSet():
-                print "Received finishon sequence {}".format(thing.sequence)
+                print "Received finish on sequence {}".format(thing.sequence)
                 finishes_received += 1
 
             if finishes_received >= 2:
@@ -233,9 +233,10 @@ def database_write(q, lock):
                 cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags) VALUES " + args_str)
                 relations_buffer = []
 
-                args_str = ','.join(members_buffer)
-                cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
-                members_buffer = []
+                if members_buffer:
+                    args_str = ','.join(members_buffer)
+                    cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
+                    members_buffer = []
 
         if (changesets + nodes + ways + relations + users) % 1000 == 0:
             print "%10d changesets, %10d nodes, %10d ways, %5d relations, %5d users, %d queue, %s sqn" % (changesets, nodes, ways, relations, users, q.qsize(), sequence)
@@ -249,8 +250,9 @@ def database_write(q, lock):
     if relations_buffer:
         args_str = ','.join(relations_buffer)
         cur.execute("INSERT INTO osm.relations (id, version, visible, changeset_id, timestamp, uid, tags) VALUES " + args_str)
-        args_str = ','.join(members_buffer)
-        cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
+        if members_buffer:
+            args_str = ','.join(members_buffer)
+            cur.execute("INSERT INTO osm.relation_members (id, version, member_id, member_type, member_role, sequence_id) VALUES " + args_str)
 
     for (uid, user_tstamp) in user_buffer.iteritems():
         (uname, tstamp) = user_tstamp
