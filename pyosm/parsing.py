@@ -195,13 +195,13 @@ def iter_osm_change_file(f, parse_timestamps=True):
                 action = elem.tag
         elif event == 'end':
             if elem.tag == 'node':
-                yield (action, obj)
+                yield models.ActionElement(action, obj
                 obj = None
             elif elem.tag == 'way':
-                yield (action, obj)
+                yield model.ActionElement(action, obj)
                 obj = None
             elif elem.tag == 'relation':
-                yield (action, obj)
+                yield model.ActionElement(action, obj)
                 obj = None
             elif elem.tag in ('create', 'modify', 'delete'):
                 action = None
