@@ -1,0 +1,14 @@
+language: python
+python:
+- '2.7'
+- '3.3'
+- pypy
+deploy:
+  provider: pypi
+  user: iandees
+  password:
+    secure: SUQmuolOMCJRQ+eto9EAzSv5Fl57/peSPe/cBFiXrFwYW4Drxtl4KIrw9F9l0Zkwr/0nuJ2PprLY3ddhzDn3gmV3P1SUbmrg2TJSje0+NEttemP0fXZW+M3lJ35txRcIMLQxoDhSpoBv1yDVnqr4GOyvXvoJZZdpouqNTbDHI+8=
+  on:
+    tags: true
+    distributions: sdist bdist_wheel
+    repo: iandees/pyosm
