@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='pyosm',
-    version='0.4.0',
+    version='0.5.1',
     author='Ian Dees',
     author_email='ian.dees@gmail.com',
     packages=['pyosm'],
@@ -12,8 +12,8 @@ setup(
     long_description=open('README.md').read(),
     keywords = ['osm', 'openstreetmap', 'xml', 'parsing'],
     install_requires=[
-        'lxml==3.2.3',
-        'requests==2.2.1'
+        'lxml',
+        'requests'
     ]
 )
 
