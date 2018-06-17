@@ -64,9 +64,3 @@ def get_shapes(filelike):
                 shapes.append((thing, next(polygonize(parts))))
 
     return shapes
-
-if __name__ == '__main__':
-    import sys
-
-    for (thing, shape) in get_shapes(open(sys.argv[1], 'r')):
-        print "%s %s = %s" % (type(thing), thing.id, shape.centroid)
