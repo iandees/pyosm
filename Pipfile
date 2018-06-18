@@ -12,6 +12,8 @@ name = "pypi"
 
 [dev-packages]
 
+nose = "*"
+bumpversion = "*"
 
 
 [requires]
