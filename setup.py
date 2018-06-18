@@ -13,7 +13,6 @@ setup(
     keywords = ['osm', 'openstreetmap', 'xml', 'parsing'],
     install_requires=[
         'lxml',
-        'requests'
     ]
 )
 
