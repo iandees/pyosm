@@ -1,5 +1,5 @@
-from parsing import iter_osm_file
-from model import Node, Way, Relation
+from pyosm.parsing import iter_osm_file
+from pyosm.model import Node, Way, Relation
 from shapely.geometry import Point, LineString, Polygon
 from shapely.ops import polygonize
 

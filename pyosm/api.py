@@ -1,5 +1,5 @@
 import urllib2
-from parsing import iter_osm_file, iter_osm_change_file
+from pyosm.parsing import iter_osm_file, iter_osm_change_file
 
 class Api(object):
     def __init__(self, base_url='http://api.openstreetmap.org/api'):
