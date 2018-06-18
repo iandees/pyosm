@@ -1,8 +1,10 @@
 language: python
 python:
-- '2.7'
-- '3.6'
-- pypy
+  - '2.7'
+  - '3.6'
+install:
+  - pip install -e .
+  - pip install nose
 script: nosetests
 deploy:
   provider: pypi
@@ -11,5 +13,5 @@ deploy:
     secure: SUQmuolOMCJRQ+eto9EAzSv5Fl57/peSPe/cBFiXrFwYW4Drxtl4KIrw9F9l0Zkwr/0nuJ2PprLY3ddhzDn3gmV3P1SUbmrg2TJSje0+NEttemP0fXZW+M3lJ35txRcIMLQxoDhSpoBv1yDVnqr4GOyvXvoJZZdpouqNTbDHI+8=
   on:
     tags: true
-    distributions: sdist bdist_wheel
+    distributions: sdist
     repo: iandees/pyosm
