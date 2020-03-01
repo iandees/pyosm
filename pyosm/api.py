@@ -2,7 +2,7 @@ import urllib2
 from pyosm.parsing import iter_osm_file, iter_osm_change_file
 
 class Api(object):
-    def __init__(self, base_url='http://api.openstreetmap.org/api'):
+    def __init__(self, base_url='https://api.openstreetmap.org/api'):
         self._base = base_url
         self.USER_AGENT = 'pyosm/1.0 (http://github.com/iandees/pyosm)'
 
