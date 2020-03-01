@@ -1,17 +1,12 @@
-import pyosm.model as model
 import datetime
-try:
-    import urllib.request as urllib2
-except ImportError:
-    import urllib2
-try:
-    import StringIO
-except ImportError:
-    from io import StringIO
 import gzip
-import time
+import io
 import os.path
+import pyosm.model as model
+import requests
+import time
 from lxml import etree
+
 
 def isoToDatetime(s):
     """Parse a ISO8601-formatted string to a Python datetime."""
@@ -19,6 +14,7 @@ def isoToDatetime(s):
         return s
     else:
         return datetime.datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
+
 
 def noteTimeToDatetime(s):
     """Parse a datetime out of the Notes RSS feed."""
@@ -28,19 +24,23 @@ def noteTimeToDatetime(s):
         # 2013-05-01 08:10:42 UTC
         return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S UTC")
 
+
 def maybeInt(s):
     return int(s) if s is not None else s
+
 
 def maybeFloat(s):
     return float(s) if s is not None else s
 
+
 def maybeBool(s):
     return s == 'true' if s is not None else s
+
 
 def readState(state_file, sep='='):
     state = {}
 
-    for line in state_file:
+    for line in state_file.splitlines():
         if line.startswith('---'):
             continue
         if line[0] == '#':
@@ -49,6 +49,7 @@ def readState(state_file, sep='='):
         state[k] = v.strip().replace("\\:", ":")
 
     return state
+
 
 def iter_changeset_stream(start_sqn=None, base_url='https://planet.openstreetmap.org/replication/changesets', expected_interval=60, parse_timestamps=True, state_dir=None):
     """Start processing an OSM changeset stream and yield one (action, primitive) tuple
@@ -64,14 +65,15 @@ def iter_changeset_stream(start_sqn=None, base_url='https://planet.openstreetmap
             raise Exception('Specified state_dir "%s" doesn\'t exist.' % state_dir)
 
         if os.path.exists('%s/state.yaml' % state_dir):
-            with open('%s/state.yaml' % state_dir) as f:
+            with open('%s/state.yaml' % state_dir, 'r') as f:
                 state = readState(f, ': ')
                 start_sqn = state['sequence']
 
     # If no start_sqn, assume to start from the most recent changeset file
     if not start_sqn:
-        u = urllib2.urlopen('%s/state.yaml' % base_url)
-        state = readState(u, ': ')
+        u = requests.get('%s/state.yaml' % base_url)
+        u.raise_for_status()
+        state = readState(u.text, ': ')
         sequenceNumber = int(state['sequence'])
     else:
         sequenceNumber = int(start_sqn)
@@ -83,17 +85,18 @@ def iter_changeset_stream(start_sqn=None, base_url='https://planet.openstreetmap
 
         delay = 1.0
         while True:
-            try:
-                content = urllib2.urlopen(url)
-                content = StringIO.StringIO(content.read())
-                gzipper = gzip.GzipFile(fileobj=content)
-                interval_fudge -= (interval_fudge / 2.0)
-                break
-            except urllib2.HTTPError as e:
-                if e.code == 404:
-                    time.sleep(delay)
-                    delay = min(delay * 2, 13)
-                    interval_fudge += delay
+            content = requests.get(url)
+
+            if content.status_code == 404:
+                time.sleep(delay)
+                delay = min(delay * 2, 13)
+                interval_fudge += delay
+                continue
+
+            content = io.BytesIO(content.content)
+            gzipper = gzip.GzipFile(fileobj=content)
+            interval_fudge -= (interval_fudge / 2.0)
+            break
 
         obj = None
         for event, elem in etree.iterparse(gzipper, events=('start', 'end')):
@@ -131,6 +134,7 @@ def iter_changeset_stream(start_sqn=None, base_url='https://planet.openstreetmap
         if state_dir:
             with open('%s/state.yaml' % state_dir, 'w') as f:
                 f.write('sequence: %d' % sequenceNumber)
+
 
 def iter_osm_change_file(f, parse_timestamps=True):
     action = None
@@ -210,6 +214,7 @@ def iter_osm_change_file(f, parse_timestamps=True):
         while elem.getprevious() is not None:
             del elem.getparent()[0]
 
+
 def iter_osm_stream(start_sqn=None, base_url='https://planet.openstreetmap.org/replication/minute', expected_interval=60, parse_timestamps=True, state_dir=None):
     """Start processing an OSM diff stream and yield one changeset at a time to
     the caller."""
@@ -226,20 +231,20 @@ def iter_osm_stream(start_sqn=None, base_url='https://planet.openstreetmap.org/r
 
     # If no start_sqn, assume to start from the most recent diff
     if not start_sqn:
-        u = urllib2.urlopen('%s/state.txt' % base_url)
-        state = readState(u)
+        u = requests.get('%s/state.txt' % base_url)
+        state = readState(u.text)
     else:
         sqnStr = str(start_sqn).zfill(9)
-        u = urllib2.urlopen('%s/%s/%s/%s.state.txt' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9]))
-        state = readState(u)
+        u = requests.get('%s/%s/%s/%s.state.txt' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9]))
+        state = readState(u.text)
 
     interval_fudge = 0.0
 
     while True:
         sqnStr = state['sequenceNumber'].zfill(9)
         url = '%s/%s/%s/%s.osc.gz' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
-        content = urllib2.urlopen(url)
-        content = StringIO.StringIO(content.read())
+        content = requests.get(url)
+        content = io.BytesIO(content.content)
         gzipper = gzip.GzipFile(fileobj=content)
 
         for a in iter_osm_change_file(gzipper, parse_timestamps):
@@ -261,23 +266,25 @@ def iter_osm_stream(start_sqn=None, base_url='https://planet.openstreetmap.org/r
         url = '%s/%s/%s/%s.state.txt' % (base_url, sqnStr[0:3], sqnStr[3:6], sqnStr[6:9])
         delay = 1.0
         while True:
-            try:
-                u = urllib2.urlopen(url)
-                interval_fudge -= (interval_fudge / 2.0)
-                break
-            except urllib2.HTTPError as e:
-                if e.code == 404:
-                    time.sleep(delay)
-                    delay = min(delay * 2, 13)
-                    interval_fudge += delay
+            u = requests.get(url)
+
+            if u.status_code == 404:
+                time.sleep(delay)
+                delay = min(delay * 2, 13)
+                interval_fudge += delay
+                continue
+
+            interval_fudge -= (interval_fudge / 2.0)
+            break
 
         if state_dir:
             with open('%s/state.txt' % state_dir, 'w') as f:
-                f.write(u.read())
+                f.write(u.content)
             with open('%s/state.txt' % state_dir, 'r') as f:
                 state = readState(f)
         else:
-            state = readState(u)
+            state = readState(u.text)
+
 
 def iter_osm_file(f, parse_timestamps=True):
     """Parse a file-like containing OSM XML and yield one OSM primitive at a time
@@ -372,6 +379,7 @@ def iter_osm_file(f, parse_timestamps=True):
         while elem.getprevious() is not None:
             del elem.getparent()[0]
 
+
 def parse_osm_file(f, parse_timestamps=True):
     """Parse a file-like containing OSM XML into memory and return an object with
     the nodes, ways, and relations it contains. """
@@ -391,9 +399,11 @@ def parse_osm_file(f, parse_timestamps=True):
 
     return (nodes, ways, relations)
 
+
 def get_note(note_id, parse_timestamps=True):
-    u = urllib2.urlopen('https://www.openstreetmap.org/api/0.6/notes/%d' % note_id)
-    tree = etree.parse(u)
+    u = requests.get('https://www.openstreetmap.org/api/0.6/notes/%d' % note_id)
+    u.raise_for_status()
+    tree = etree.fromstring(u.content)
     note_elem = tree.xpath('/osm/note')[0]
 
     def parse_comment(comment_element):
@@ -423,14 +433,19 @@ def get_note(note_id, parse_timestamps=True):
         comments=[parse_comment(c) for c in note_elem.xpath('comments/comment')]
     )
 
+
 def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
     """ Parses the global OSM Notes feed and yields as much Note information as possible. """
 
     last_seen_guid = None
     while True:
-        u = urllib2.urlopen('https://www.openstreetmap.org/api/0.6/notes/feed?limit=%d' % feed_limit)
+        u = requests.get(
+            'https://www.openstreetmap.org/api/0.6/notes/feed',
+            params=dict(limit=feed_limit),
+        )
+        u.raise_for_status()
 
-        tree = etree.parse(u)
+        tree = etree.fromstring(u.content)
 
         new_notes = []
         for note_item in tree.xpath('/rss/channel/item'):
@@ -448,7 +463,7 @@ def iter_osm_notes(feed_limit=25, interval=60, parse_timestamps=True):
 
             if last_seen_guid == guid:
                 break
-            elif last_seen_guid == None:
+            elif last_seen_guid is None:
                 # The first time through we want the first item to be the "last seen"
                 # because the RSS feed is newest-to-oldest
                 last_seen_guid = guid

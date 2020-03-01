@@ -8,8 +8,10 @@ polygon_way_tags = {
     'building': ('yes'),
 }
 
+
 def way_is_polygon(way):
     return (way.nds[-1] == next(iter(way.nds))) and any([t.key in polygon_way_tags and t.value in polygon_way_tags[t.key] for t in way.tags])
+
 
 def get_shapes(filelike):
     shapes = []
