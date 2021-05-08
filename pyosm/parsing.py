@@ -279,7 +279,7 @@ def iter_osm_stream(start_sqn=None, base_url='https://planet.openstreetmap.org/r
 
         if state_dir:
             with open('%s/state.txt' % state_dir, 'w') as f:
-                f.write(u.content)
+                f.write(u.text)
             with open('%s/state.txt' % state_dir, 'r') as f:
                 state = readState(f)
         else:
